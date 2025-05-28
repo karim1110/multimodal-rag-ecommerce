@@ -13,6 +13,8 @@ INDEX_NAME = "multimodal"
 EMBEDDING_DIM = 512  # CLIP base model uses 512-dimensional embeddings
 BATCH_SIZE = 100  # Number of items to upsert at once
 EVAL_SAMPLE_SIZE = 100  # Number of items to evaluate (set to 0 to skip evaluation)
+print("Loaded Pinecone key:", bool(PINECONE_API_KEY))
+
 
 def initialize_pinecone():
     """Initialize Pinecone connection and create index if needed"""

@@ -26,10 +26,15 @@ PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
 INDEX_NAME = "multimodal"
 LLM_MODEL = "microsoft/phi-2"
 device = "cuda" if torch.cuda.is_available() else "cpu"
+print("Loaded Pinecone key:", bool(PINECONE_API_KEY))
+
 
 # ----- Pinecone Initialization -----
-pinecone.init(api_key=PINECONE_API_KEY, environment="us-east-1")
-index = pinecone.Index(INDEX_NAME)
+from pinecone import Pinecone
+
+pc = Pinecone(api_key=PINECONE_API_KEY)
+index = pc.Index(INDEX_NAME)
+
 
 # ----- Load CLIP -----
 clip_model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32").to(device)
@@ -47,6 +52,7 @@ phi_pipe = pipeline(
     temperature=0.7,
     device=0 if torch.cuda.is_available() else -1
 )
+
 
 # ----- Embedding Functions -----
 def embed_text(text):
