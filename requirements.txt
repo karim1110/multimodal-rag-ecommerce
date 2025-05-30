@@ -1,0 +1,12 @@
+streamlit
+pinecone-client
+transformers
+Pillow
+torch
+python-dotenv
+requests
+pandas
+tqdm
+numpy
+langchain
+kagglehub 
