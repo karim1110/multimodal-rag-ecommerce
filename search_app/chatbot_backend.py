@@ -18,13 +18,14 @@ from transformers import (
 )
 from PIL import Image
 import torch
-import pinecone
-import os
+import dotenv
+import requests
+
 
 # ----- Configuration -----
-PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
+PINECONE_API_KEY = dotenv.get_key(".env", "PINECONE_API_KEY")
+PERPLEXITY_API_KEY = dotenv.get_key(".env", "PERPLEXITY_API_KEY")
 INDEX_NAME = "multimodal"
-LLM_MODEL = "microsoft/phi-2"
 device = "cuda" if torch.cuda.is_available() else "cpu"
 print("Loaded Pinecone key:", bool(PINECONE_API_KEY))
 
@@ -32,6 +33,7 @@ print("Loaded Pinecone key:", bool(PINECONE_API_KEY))
 # ----- Pinecone Initialization -----
 from pinecone import Pinecone
 
+print(PINECONE_API_KEY)
 pc = Pinecone(api_key=PINECONE_API_KEY)
 index = pc.Index(INDEX_NAME)
 
@@ -40,19 +42,43 @@ index = pc.Index(INDEX_NAME)
 clip_model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32").to(device)
 clip_processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32")
 
-# ----- Load Phi-2 -----
-tokenizer = AutoTokenizer.from_pretrained(LLM_MODEL)
-phi_model = AutoModelForCausalLM.from_pretrained(LLM_MODEL, torch_dtype=torch.float32).to(device)
-phi_pipe = pipeline(
-    "text-generation",
-    model=phi_model,
-    tokenizer=tokenizer,
-    max_new_tokens=256,
-    do_sample=True,
-    temperature=0.7,
-    device=0 if torch.cuda.is_available() else -1
-)
-
+# ----- Add Perplexity API function -----
+def generate_with_perplexity(prompt):
+    headers = {
+        "Authorization": f"Bearer {PERPLEXITY_API_KEY}",
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "model": "llama-3.1-sonar-large-128k-online",
+        "messages": [
+            {
+                "role": "system",
+                "content": "You are a helpful product assistant."
+            },
+            {
+                "role": "user",
+                "content": prompt
+            }
+        ],
+        "temperature": 0.7,
+        "max_tokens": 256
+    }
+    
+    try:
+        response = requests.post(
+            "https://api.perplexity.ai/chat/completions",
+            json=payload,
+            headers=headers,
+            timeout=10
+        )
+        response.raise_for_status()
+        return response.json()["choices"][0]["message"]["content"]
+    except requests.exceptions.HTTPError as e:
+        print(f"Perplexity API HTTP Error: {e.response.text}")
+        return "Sorry, I couldn't get a response from the AI assistant."
+    except Exception as e:
+        print(f"Perplexity API error: {str(e)}")
+        return "Sorry, there was an error processing your request."
 
 # ----- Embedding Functions -----
 def embed_text(text):
@@ -119,9 +145,8 @@ Question:
 
 Answer:"""
 
-    # Generate answer with Phi-2
-    generated = phi_pipe(prompt)[0]["generated_text"]
-    answer = generated.split("Answer:")[-1].strip()
+    # Generate answer with Perplexity
+    answer = generate_with_perplexity(prompt)
 
     return {
         "answer": answer,
