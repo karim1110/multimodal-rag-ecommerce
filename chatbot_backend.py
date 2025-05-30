@@ -8,16 +8,13 @@ Original file is located at
 """
 
 # chatbot_backend.py
-
 from transformers import (
     CLIPProcessor,
-    CLIPModel,
-    AutoTokenizer,
-    AutoModelForCausalLM,
-    pipeline
+    CLIPModel
 )
 from PIL import Image
 import torch
+torch.classes.__path__ = []
 import dotenv
 import requests
 

@@ -1,7 +1,11 @@
+import os
+os.environ["STREAMLIT_SERVER_ENABLE_FILE_WATCHER"] = "false"
+
+
+from chatbot_backend import query_vector_db as get_chatbot_response
 import streamlit as st
 import io # Import io module for handling uploaded file as bytes
 
-from chatbot_backend import query_vector_db as get_chatbot_response
 import pandas as pd
 
 # --- Page Config ---
