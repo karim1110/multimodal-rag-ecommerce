@@ -67,11 +67,11 @@ The solution implements a **multimodal product search engine**, combining **text
 
 
 ```mermaid
-graph TD
+graph TD;
     A[Start] --> B[Data Acquisition & Preprocessing];
     B --> C[Generate Text Embeddings with CLIP];
     B --> D[Download & Generate Image Embeddings with CLIP];
-    C --> E[Save to JSON (text + metadata)];
+    C --> E[Save to JSON (text and metadata)];
     D --> E;
     E --> F[Upload Embeddings to Pinecone];
     F --> G[Chatbot Backend];
