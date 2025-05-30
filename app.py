@@ -1,4 +1,5 @@
 import streamlit as st
+import io # Import io module for handling uploaded file as bytes
 
 from chatbot_backend import query_vector_db as get_chatbot_response
 
@@ -72,6 +73,14 @@ st.markdown("""
         box-shadow: 0 2px 8px rgba(0,0,0,0.2); /* Darker shadow for contrast */
         margin-bottom: 1rem;
         color: white; /* Text in product card is white */
+        height: 100%; /* Ensure cards in a row have equal height */
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between; /* Distribute content */
+    }
+    .product-card img {
+        border-radius: 8px; /* Slightly rounded corners for images */
+        margin-bottom: 0.5rem;
     }
     .product-card .st-cq { /* Target st.caption specifically inside product cards */
         color: #B0B0B0; /* Lighter grey for captions */
@@ -187,36 +196,49 @@ with col2:
 # --- Search Results ---
 if search:
     with st.spinner("Retrieving results..."):
-        # Determine if it's a text query, image query, or both
-        if text_query and uploaded_image:
-            response = get_chatbot_response(text=text_query, image=uploaded_image)
-        elif text_query:
-            response = get_chatbot_response(text=text_query)
-        elif uploaded_image:
-            response = get_chatbot_response(image=uploaded_image)
-        else:
-            response = get_chatbot_response()
+        # If an image is uploaded, pass its byte stream to the backend
+        image_stream = None
+        if uploaded_image:
+            image_stream = io.BytesIO(uploaded_image.getvalue())
+
+        # Determine the type of query and call the backend
+        response = get_chatbot_response(text=text_query, image=image_stream)
 
     st.success("✅ Here's what we found:")
     st.markdown("### 💬 Chatbot Response")
     st.markdown(response["answer"])
 
+    # Display the main product image if available and requested by LLM
     if response["image_url"]:
-        st.image(response["image_url"], caption="Identified Product", use_container_width=True)
+        st.markdown("---")
+        st.markdown("### 🖼️ Identified Product Image")
+        st.image(response["image_url"], caption="Identified Product", use_container_width=False, width=300) # You can adjust width
 
-    # In your frontend code (app.py), modify the product card section:
+    # Display related products with their images
     if response["retrieved_items"]:
+        st.markdown("---")
         st.markdown("### 📚 Related Products")
-        num_items = len(response["retrieved_items"])
-        if num_items > 0:
-            result_cols = st.columns(min(num_items, 3))
+        
+        # Filter out items that don't have an image to ensure cleaner display for products with images
+        items_with_images = [item for item in response["retrieved_items"] if item["image"]]
+        items_without_images = [item for item in response["retrieved_items"] if not item["image"]]
 
-            for i, item in enumerate(response["retrieved_items"]):
-                if i < 3:
-                    with result_cols[i]:
+        if items_with_images:
+            st.markdown("#### Products with Images:")
+            # Display up to 3 products per row
+            num_items_to_display = len(items_with_images)
+            for i in range(0, num_items_to_display, 3):
+                cols = st.columns(min(3, num_items_to_display - i))
+                for j in range(min(3, num_items_to_display - i)):
+                    item = items_with_images[i + j]
+                    with cols[j]:
                         st.markdown("<div class='product-card'>", unsafe_allow_html=True)
-                        if item["image"] is not None:
-                            st.image(item["image"], use_container_width=True)
+                        st.image(item["image"], use_container_width=True) # Display the image
                         st.markdown(f"**{item['title']}**")
                         st.caption(item["description"])
                         st.markdown("</div>", unsafe_allow_html=True)
+        
+        if items_without_images:
+            st.markdown("#### Other Related Products (No Image Available):")
+            for item in items_without_images:
+                st.markdown(f"- **{item['title']}** - {item['description']}")
