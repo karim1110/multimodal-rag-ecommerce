@@ -15,13 +15,13 @@ from transformers import (
 from PIL import Image
 import torch
 torch.classes.__path__ = []
-import dotenv
 import requests
+import streamlit as st
 
 
 # ----- Configuration -----
-PINECONE_API_KEY = dotenv.get_key(".env", "PINECONE_API_KEY")
-PERPLEXITY_API_KEY = dotenv.get_key(".env", "PERPLEXITY_API_KEY")
+PINECONE_API_KEY = st.secrets["PINECONE_API_KEY"]
+PERPLEXITY_API_KEY = st.secrets["PERPLEXITY_API_KEY"]
 INDEX_NAME = "multimodal"
 device = "cuda" if torch.cuda.is_available() else "cpu"
 print("Loaded Pinecone key:", bool(PINECONE_API_KEY))
