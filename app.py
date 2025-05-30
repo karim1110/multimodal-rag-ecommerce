@@ -2,6 +2,7 @@ import streamlit as st
 import io # Import io module for handling uploaded file as bytes
 
 from chatbot_backend import query_vector_db as get_chatbot_response
+import pandas as pd
 
 # --- Page Config ---
 st.set_page_config(page_title="Search a Product from Amazon", layout="wide")
@@ -203,6 +204,13 @@ if search:
 
         # Determine the type of query and call the backend
         response = get_chatbot_response(text=text_query, image=image_stream)
+        preprocessed_df=pd.read_csv("marketing_sample_for_amazon_com-ecommerce__20200101_20200131__10k_data.csv")
+        product_id_url=response['retrieved_items'][5]['product_id']
+        image_url=preprocessed_df[preprocessed_df['Uniq Id']==product_id_url]['Image']
+        if not image_url.empty:
+            response["image_url"] = image_url.values[0]
+        else:
+            response["image_url"] = None
 
     st.success("✅ Here's what we found:")
     st.markdown("### 💬 Chatbot Response")
@@ -220,8 +228,8 @@ if search:
         st.markdown("### 📚 Related Products")
         
         # Filter out items that don't have an image to ensure cleaner display for products with images
-        items_with_images = [item for item in response["retrieved_items"] if item["image"]]
-        items_without_images = [item for item in response["retrieved_items"] if not item["image"]]
+        items_without_images = [item for item in response["retrieved_items"][0:4]]
+        items_with_images = [item for item in response["retrieved_items"][5:9]]
 
         if items_with_images:
             st.markdown("#### Products with Images:")
@@ -233,7 +241,10 @@ if search:
                     item = items_with_images[i + j]
                     with cols[j]:
                         st.markdown("<div class='product-card'>", unsafe_allow_html=True)
-                        st.image(item["image"], use_container_width=True) # Display the image
+                        product_id_url=item['product_id']
+                        image_url=preprocessed_df[preprocessed_df['Uniq Id']==product_id_url]['Image']
+                        st.image(image_url.values[0], use_container_width=True) if not image_url.empty else None
+                        #st.image(item["image"], use_container_width=True) # Display the image
                         st.markdown(f"**{item['title']}**")
                         st.caption(item["description"])
                         st.markdown("</div>", unsafe_allow_html=True)

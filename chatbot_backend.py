@@ -20,9 +20,7 @@ from PIL import Image
 import torch
 import dotenv
 import requests
-import pandas as pd
-import numpy as np
-import re
+
 
 # ----- Configuration -----
 PINECONE_API_KEY = dotenv.get_key(".env", "PINECONE_API_KEY")
@@ -44,54 +42,47 @@ index = pc.Index(INDEX_NAME)
 clip_model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32").to(device)
 clip_processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32")
 
-# ----- Load Product Data (CSV) -----
-# Assuming the CSV file is in the same directory as this script
-try:
-    product_df = pd.read_csv("marketing_sample_for_amazon_com-ecommerce__20200101_20200131__10k_data.csv")
-    print("CSV data loaded successfully.")
-except FileNotFoundError:
-    print("Error: marketing_sample_for_amazon_com-ecommerce__20200101_20200131__10k_data.csv not found.")
-    product_df = pd.DataFrame() # Create an empty DataFrame to prevent errors
-except Exception as e:
-    print(f"Error loading CSV: {e}")
-    product_df = pd.DataFrame()
 
+def generate_with_perplexity2(prompt):
+    headers = {
+        "Authorization": f"Bearer {PERPLEXITY_API_KEY}",
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "model": "llama-3.1-sonar-large-128k-online",
+        "messages": [
+            {
+                "role": "system",
+                "content": "You are a helpful product assistant. Please answer whether we need to return 'text', 'image' or 'both' for the given query in our rag system. You answer should just be these values only ['text','image','both']"
+            },
+            {
+                "role": "user",
+                "content": """ Please answer whether we need to return 'text', 'image' or 'both' for the given query in our rag system. You answer should just be these values only ['text','image','both']
+                prompt"""
+            }
+        ],
+        "temperature": 0.7,
+        "max_tokens": 256
+    }
+    
+    try:
+        response = requests.post(
+            "https://api.perplexity.ai/chat/completions",
+            json=payload,
+            headers=headers,
+            timeout=10
+        )
+        response.raise_for_status()
+        return response.json()["choices"][0]["message"]["content"]
+    except requests.exceptions.HTTPError as e:
+        print(f"Perplexity API HTTP Error: {e.response.text}")
+        return "Sorry, I couldn't get a response from the AI assistant."
+    except Exception as e:
+        print(f"Perplexity API error: {str(e)}")
+        return "Sorry, there was an error processing your request."
 
-# ----- Helper for Product ID Parsing -----
-def _get_product_id_from_pinecone_id(pinecone_id):
-    """
-    Parses the Pinecone ID to extract the product's unique ID.
-    Expected format: ID_[img/text]_[number] or just ID.
-    Example: 0003a7ccfb779e7ac1664fb13145aff2_img_0 -> 0003a7ccfb779e7ac1664fb13145aff2
-    """
-    match = re.match(r"([a-f0-9]+(?:-[a-f0-9]+)*)_[a-z]+_[0-9]+", pinecone_id)
-    if match:
-        return match.group(1)
-    # If the ID doesn't match the specific format, try to get everything before the first underscore
-    parts = pinecone_id.split('_', 1)
-    return parts[0] if parts else pinecone_id
+return_flag=generate_with_perplexity2("What are the features of the Samsung Galaxy S21?")
 
-# ----- Helper for Image URL Retrieval from CSV -----
-def _get_image_url_from_product_id(product_id):
-    """
-    Retrieves the first image URL for a given product_id from the loaded DataFrame.
-    """
-    if product_df.empty:
-        return None
-    
-    # Ensure 'Uniq Id' is treated as string for consistent comparison
-    product_id_str = str(product_id)
-    
-    # Using .loc for direct and clear indexing
-    matches = product_df.loc[product_df['Uniq Id'].astype(str) == product_id_str, 'Image']
-    
-    if not matches.empty:
-        image_urls_str = matches.iloc[0]
-        if pd.isna(image_urls_str):
-            return None
-        # Image URLs are separated by '|', return the first one
-        return image_urls_str.split('|')[0].strip()
-    return None
 
 
 # ----- Add Perplexity API function -----
@@ -105,7 +96,7 @@ def generate_with_perplexity(prompt):
         "messages": [
             {
                 "role": "system",
-                "content": "You are a helpful product assistant. When relevant, if the user asks to see an image or related products, you should indicate in your response whether to 'SHOW_IMAGE' or 'HIDE_IMAGE' at the very beginning of your answer. For example, 'SHOW_IMAGE: Here is the product you asked about.' or 'HIDE_IMAGE: I cannot display images for this query.' Always include 'SHOW_IMAGE' or 'HIDE_IMAGE' as the first token in your response."
+                "content": "You are a helpful product assistant."
             },
             {
                 "role": "user",
@@ -127,10 +118,10 @@ def generate_with_perplexity(prompt):
         return response.json()["choices"][0]["message"]["content"]
     except requests.exceptions.HTTPError as e:
         print(f"Perplexity API HTTP Error: {e.response.text}")
-        return "HIDE_IMAGE: Sorry, I couldn't get a response from the AI assistant."
+        return "Sorry, I couldn't get a response from the AI assistant."
     except Exception as e:
         print(f"Perplexity API error: {str(e)}")
-        return "HIDE_IMAGE: Sorry, there was an error processing your request."
+        return "Sorry, there was an error processing your request."
 
 # ----- Embedding Functions -----
 def embed_text(text):
@@ -145,129 +136,97 @@ def embed_image(file):
         return clip_model.get_image_features(**inputs)[0].cpu().numpy().tolist()
 
 # ----- Main Retrieval + Generation Function -----
-def query_vector_db(text=None, image=None):
-    query_vec = None
-    query_type = None
-    pinecone_filter = {}
 
-    if text and image:
-        # Combine embeddings for both text and image
-        text_embedding = embed_text(text)
-        image_embedding = embed_image(image)
-        # Simple averaging for combined embedding; more sophisticated methods can be used
-        query_vec = np.mean([text_embedding, image_embedding], axis=0).tolist()
-        query_text = f"User asked: '{text}' about this image."
-        # When querying with both, we want to retrieve both types of vectors
-        # If your Pinecone index has mixed types in the same vector, no filter is needed.
-        # If 'type' metadata is used to distinguish embeddings (as in your original setup),
-        # then we might need to query for both text and image types.
-        # For this setup, we'll assume we can query across types for "both"
-        # and let the LLM synthesize based on retrieved metadata.
-        # If your Pinecone index has separate vector spaces for text and image,
-        # you'd need to perform two queries and merge results.
-        # For now, we'll try to retrieve relevant items regardless of their specific type in Pinecone,
-        # assuming the combined embedding is effective.
-        # Alternatively, for "both" you could query twice and merge the top_k.
-        # Let's query without a type filter for combined input to get broadest results.
-        pinecone_filter = {} # No type filter for combined search to get relevant results of both types
-        
-    elif text:
-        query_vec = embed_text(text)
-        query_text = text
-        pinecone_filter = {"type": {"$eq": "text"}} # Filter for text embeddings
-    elif image:
-        query_vec = embed_image(image)
-        query_text = "What is this product?" # Generic question for image-only queries
-        pinecone_filter = {"type": {"$eq": "image"}} # Filter for image embeddings
-    else:
+
+def query_vector_db(text=None, image=None, return_type="both"):
+    return_type=generate_with_perplexity2(text)
+    if not text and not image:
         return {
             "answer": "Please provide a text or image input.",
             "image_url": None,
             "retrieved_items": []
         }
+    return_type=generate_with_perplexity2(text)
+    if return_type not in ['image','text','both']:
+        return_type='both'
+        
+    # 1. Embed the input(s)
+    query_vec = None
+    query_text = ""
+    if text and not image:
+        query_vec = embed_text(text)
+        query_text = text
+    elif image and not text:
+        query_vec = embed_image(image)
+        query_text = "What is this product?"
+    elif text and image:
+        # Combine text and image embeddings (optional: use a weighted average or concatenation)
+        text_vec = embed_text(text)
+        image_vec = embed_image(image)
+        query_vec = [(t + i) / 2 for t, i in zip(text_vec, image_vec)]
+        query_text = text
 
-    # Query Pinecone
-    results = index.query(
-        vector=query_vec,
-        top_k=5,
-        include_metadata=True,
-        # Apply filter based on input type, or no filter for combined query
-        filter=pinecone_filter
-    )
+    # 2. Determine which vector types to return
+    if return_type == "both":
+        query_types = ["text", "image"]
+    elif return_type in {"text", "image"}:
+        query_types = [return_type]
+    else:
+        raise ValueError("return_type must be one of: 'text', 'image', 'both'")
 
-    # Build prompt and product cards
+    # 3. Query Pinecone and build product cards
     retrieved_info = ""
     retrieved_items = []
-    
-    main_product_image_url = None # To store the image URL of the most relevant product
 
-    for match in results.get("matches", []):
-        md = match.get("metadata", {})
-        pinecone_id = match.get("id") # Get the full Pinecone ID
-        
-        # Extract product_id from Pinecone ID
-        product_id = _get_product_id_from_pinecone_id(pinecone_id)
-        
-        name = md.get("name", "Unknown Product")
-        category = md.get("category", "Unknown")
-        price = md.get("price", "N/A")
-        
-        # Get image URL from CSV
-        item_image_url = _get_image_url_from_product_id(product_id)
+    for qtype in query_types:
+        results = index.query(
+            vector=query_vec,
+            top_k=5,
+            include_metadata=True,
+            filter={"type": {"$eq": qtype}}
+        )
 
-        retrieved_info += f"- Name: {name}, Category: {category}, Price: {price}\n"
-        retrieved_items.append({
-            "title": name,
-            "description": f"{category} – {price}",
-            "image": item_image_url # Add the actual image URL
-        })
-        
-        # If this is the top match and an image is found, consider it for the main display
-        if main_product_image_url is None and item_image_url:
-            main_product_image_url = item_image_url
+        for match in results.get("matches", []):
+            md = match.get("metadata", {})
+            name = md.get("name", "Unknown Product")
+            category = md.get("category", "Unknown")
+            price = md.get("price", "N/A")
+            #product_id = md.get("product_id", "N/A")
+            vector_id = match.get("id", "")
+            product_id = vector_id.split("_")[0] if "_" in vector_id else "N/A"
 
-    # Compose prompt
+            image_type = md.get("type", "unknown")
+            img_idx = md.get("img_idx", None)
+
+            retrieved_info += (
+                f"- Name: {name}, Category: {category}, Price: {price}, "
+                f"ID: {product_id}, Type: {image_type}\n"
+            )
+
+            retrieved_items.append({
+                "product_id": product_id,
+                "title": name,
+                "description": f"{category} – ${price}",
+                "image_type": image_type,
+                "img_idx": img_idx  # Used to fetch the right image from your CSV/URL store
+            })
+
+    # 4. Prompt LLM
     prompt = f"""You are a helpful product assistant.
 
-Product Info (ranked by relevance):
+Product Info:
 {retrieved_info}
 
 Question:
 {query_text}
 
-Answer (start with 'SHOW_IMAGE:' if you want to display the main retrieved image, or 'HIDE_IMAGE:' if not. Then provide your natural language answer.):"""
+Answer:"""
 
-    # Generate answer with Perplexity
     answer = generate_with_perplexity(prompt)
-    
-    # Parse LLM's decision on showing image
-    show_image_decision = "HIDE_IMAGE"
-    if answer.startswith("SHOW_IMAGE:"):
-        show_image_decision = "SHOW_IMAGE"
-        answer = answer[len("SHOW_IMAGE:"):].strip()
-    elif answer.startswith("HIDE_IMAGE:"):
-        show_image_decision = "HIDE_IMAGE"
-        answer = answer[len("HIDE_IMAGE:"):].strip()
-
-    # Determine which image URL to send back
-    final_image_to_display = None
-    if show_image_decision == "SHOW_IMAGE" and main_product_image_url:
-        final_image_to_display = main_product_image_url
-    elif show_image_decision == "HIDE_IMAGE" and not main_product_image_url:
-        # If LLM says HIDE and no image was found, still good.
-        pass
-    elif show_image_decision == "SHOW_IMAGE" and not main_product_image_url:
-        # LLM wanted to show but no image was found from CSV.
-        # We can either force HIDE or show a placeholder. For now, HIDE.
-        print("Warning: LLM requested to SHOW_IMAGE but no image URL was found.")
-        final_image_to_display = None
-    elif show_image_decision == "HIDE_IMAGE" and main_product_image_url:
-        # LLM wanted to HIDE but an image was found. Respect LLM.
-        final_image_to_display = None
-
 
     return {
         "answer": answer,
-        "image_url": final_image_to_display, # This will be the main image determined by LLM's decision
-        "retrieved_items": retrieved_items # These will now contain image URLs
+        "image_url": None,
+        "retrieved_items": retrieved_items
     }
+
