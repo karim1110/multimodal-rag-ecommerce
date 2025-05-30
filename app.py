@@ -10,164 +10,124 @@ st.set_page_config(page_title="Search a Product from Amazon", layout="wide")
 # --- Custom CSS ---
 st.markdown("""
     <style>
-    /* Set the entire body background to Amazon blue */
+    /* Dark theme colors */
+    :root {
+        --dark-bg: #121212;  /* Dark grey/black */
+        --darker-blue: #0a1a2e;  /* Dark blue alternative */
+        --card-bg: #1e1e1e;  /* Slightly lighter for cards */
+        --text-color: #ffffff;  /* White text */
+        --accent-color: #ff9900;  /* Amazon orange for accents */
+    }
+    
+    /* Set the entire body background */
     body {
-        background-color: #146eb4; /* Amazon blue */
-        color: white; /* Default text color for the entire app */
+        background-color: var(--dark-bg);
+        color: var(--text-color);
     }
 
-    /* Target Streamlit's main content area container to ensure background color */
+    /* Target Streamlit's main content area */
     .stApp {
-        background-color: #146eb4; /* Ensure the main app content area is Amazon blue */
-        color: white; /* Ensure text within the app is white */
+        background-color: var(--dark-bg);
+        color: var(--text-color);
     }
 
-    /* Override Streamlit's internal header bar at the very top */
+    /* Override Streamlit's internal header */
     .stApp > header {
-        background-color: #146eb4; /* Amazon blue */
+        background-color: var(--dark-bg) !important;
     }
 
-    /* Adjust Streamlit's top-level container padding for a cleaner look */
+    /* Adjust padding */
     .stApp > div:first-child > div:first-child > div:first-child {
-        padding-top: 0rem; /* Remove top padding if it creates a white gap */
-        padding-bottom: 0rem; /* Remove bottom padding */
+        padding-top: 0rem;
+        padding-bottom: 0rem;
     }
 
-    /* Ensure .main-container and .header are also Amazon blue and have white text */
+    /* Main container styling */
     .main-container {
         width: 100%;
         padding-left: 1rem;
         padding-right: 1rem;
-        background-color: #146eb4; /* Ensure this is also Amazon blue */
-        color: white; /* All text within it is white */
+        background-color: var(--dark-bg);
+        color: var(--text-color);
     }
+    
+    /* Header styling */
     .header {
         display: flex;
         align-items: center;
         gap: 1rem;
         margin-bottom: 1rem;
         justify-content: flex-start;
-        background-color: #146eb4; /* Ensure header itself is Amazon blue */
-        padding-top: 1rem; /* Add some padding to the top of the header area */
-        padding-bottom: 1rem; /* Add some padding to the bottom of the header area */
+        background-color: var(--dark-bg);
+        padding-top: 1rem;
+        padding-bottom: 1rem;
     }
+    
+    /* Product card styling */
+    .product-card {
+        background-color: var(--card-bg);
+        border-radius: 12px;
+        padding: 1rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        margin-bottom: 1rem;
+        color: var(--text-color);
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        border: 1px solid #333;  /* subtle border */
+    }
+
+    /* Rest of your existing CSS remains the same, just update color references */
     .header-title {
         font-size: 28px;
         font-weight: 700;
         margin: 0;
-        color: white; /* Make title white */
+        color: var(--text-color);
         text-align: left;
     }
+    
     .header-subtitle {
         font-size: 16px;
-        color: #E0E0E0; /* Slightly lighter white for subtitle, or just white */
+        color: #E0E0E0;
         text-align: left;
         margin-top: -10px;
         margin-bottom: 20px;
     }
-
-    /* Product card styling for dark background */
-    .product-card {
-        background-color: #1F7ACC; /* Slightly darker blue for card background for contrast */
-        border-radius: 12px;
-        padding: 1rem;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.2); /* Darker shadow for contrast */
-        margin-bottom: 1rem;
-        color: white; /* Text in product card is white */
-        height: 100%; /* Ensure cards in a row have equal height */
-        display: flex;
-        flex-direction: column;
-        justify-content: space-between; /* Distribute content */
-    }
-    .product-card img {
-        border-radius: 8px; /* Slightly rounded corners for images */
-        margin-bottom: 0.5rem;
-    }
-    .product-card .st-cq { /* Target st.caption specifically inside product cards */
-        color: #B0B0B0; /* Lighter grey for captions */
-    }
-
-    /* Streamlit Button styling */
+    
     .stButton>button {
-        background-color: #ff9900; /* Amazon orange */
-        color: white;
+        background-color: var(--accent-color);
+        color: var(--text-color);
         font-weight: bold;
         border: none;
         border-radius: 8px;
         padding: 0.5rem 1.2rem;
         font-size: 16px;
     }
-    .stButton>button:hover {
-        background-color: #e68a00; /* Darker orange on hover */
-    }
-
-    /* Adjust text input field background and color */
+    
+    /* Update input fields */
     .stTextInput > div > div > input {
-        background-color: #1F7ACC !important; /* Darker input field background */
-        color: white !important; /* Text inside input field (typed text) */
-        border: 1px solid #2B8ED9 !important; /* Border color */
+        background-color: #2a2a2a !important;
+        color: var(--text-color) !important;
+        border: 1px solid #444 !important;
     }
-
-    /* Make placeholder text white */
-    .stTextInput > div > div > input::placeholder {
-        color: rgba(255, 255, 255, 0.7) !important; /* White with some transparency */
-    }
-    .stTextInput > label span {
-        color: white !important; /* Label for text input */
-    }
-
-    /* Adjust file uploader background and color */
+    
+    /* Update file uploader */
     .stFileUploader > div > div {
-        background-color: #1F7ACC !important; /* Darker file uploader background */
-        color: white !important; /* Text inside file uploader */
-        border: 1px solid #2B8ED9 !important; /* Border color */
+        background-color: #2a2a2a !important;
+        color: var(--text-color) !important;
+        border: 1px solid #444 !important;
     }
-    .stFileUploader label span {
-        color: white !important; /* File uploader label text */
-    }
-    .stFileUploader button {
-        color: white !important; /* Browse Files button text */
-        background-color: #2B8ED9 !important; /* Browse Files button background */
-    }
-    .stFileUploader button:hover {
-        background-color: #3C9AE0 !important;
-    }
-
-    /* Adjust Tab styling for dark background */
-    .stTabs [data-baseweb="tab-list"] button {
-        color: white !important; /* Tab labels */
-        background-color: transparent !important; /* Make tab button background transparent */
-    }
-    .stTabs [data-baseweb="tab-list"] button:hover {
-        background-color: #2B8ED9 !important; /* Hover for tabs */
-    }
-    .stTabs [data-baseweb="tab"] {
-        background-color: #146eb4 !important; /* Active tab background */
-    }
-    .stTabs [data-baseweb="tab-list"] [aria-selected="true"] {
-        color: #ff9900 !important; /* Selected tab text color */
-        border-bottom-color: #ff9900 !important; /* Underline for selected tab */
-    }
-
-    /* Streamlit success/info/warning messages */
-    .stSuccess, .stInfo, .stWarning {
-        background-color: #1F7ACC !important; /* Darker background for messages */
-        color: white !important; /* White text for messages */
-        border-left: 5px solid #ff9900 !important; /* Amazon orange bar */
-    }
-
-    /* Explicitly make markdown text in lists white */
-    .stMarkdown ul li {
-        color: white !important;
-    }
+    
+    /* Keep the rest of your existing CSS */
     </style>
 """, unsafe_allow_html=True)
 
-# --- Header (will now be Amazon blue) ---
+# --- Header ---
 st.markdown("""
 <div class="main-container">
     <div class="header">
-        <img src='https://upload.wikimedia.org/wikipedia/commons/a/a9/Amazon_logo.svg' width='150'/>
+        <img src='https://www.marcellus.michlibrary.org/site-assets/images/amazon-logo.jpg/@@images/image.jpeg' width='150'/>
         <h1 class='header-title'>Search a Product from Amazon</h1>
     </div>
     <p class='header-subtitle'>Ask about a product using <strong>text</strong>, <strong>image</strong>, or both.</p>
@@ -228,28 +188,28 @@ if search:
         st.markdown("### 📚 Related Products")
         
         # Filter out items that don't have an image to ensure cleaner display for products with images
-        items_without_images = [item for item in response["retrieved_items"][0:4]]
+        #items_without_images = [item for item in response["retrieved_items"][0:4]]
         items_with_images = [item for item in response["retrieved_items"][5:9]]
 
         if items_with_images:
             st.markdown("#### Products with Images:")
             # Display up to 3 products per row
             num_items_to_display = len(items_with_images)
-            for i in range(0, num_items_to_display, 3):
+            for i in range(1, num_items_to_display, 3):
                 cols = st.columns(min(3, num_items_to_display - i))
                 for j in range(min(3, num_items_to_display - i)):
                     item = items_with_images[i + j]
                     with cols[j]:
                         st.markdown("<div class='product-card'>", unsafe_allow_html=True)
-                        product_id_url=item['product_id']
-                        image_url=preprocessed_df[preprocessed_df['Uniq Id']==product_id_url]['Image']
-                        st.image(image_url.values[0], use_container_width=True) if not image_url.empty else None
-                        #st.image(item["image"], use_container_width=True) # Display the image
+                        product_id_url = item['product_id']
+                        image_url = preprocessed_df[preprocessed_df['Uniq Id'] == product_id_url]['Image']
+                        if not image_url.empty:
+                            st.image(image_url.values[0], use_container_width=True)
                         st.markdown(f"**{item['title']}**")
                         st.caption(item["description"])
                         st.markdown("</div>", unsafe_allow_html=True)
         
-        if items_without_images:
-            st.markdown("#### Other Related Products (No Image Available):")
-            for item in items_without_images:
-                st.markdown(f"- **{item['title']}** - {item['description']}")
+        # if items_without_images:
+        #     st.markdown("#### Other Related Products (No Image Available):")
+        #     for item in items_without_images:
+        #         st.markdown(f"- **{item['title']}** - {item['description']}")
