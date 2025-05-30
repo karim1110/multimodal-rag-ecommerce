@@ -67,19 +67,19 @@ The solution implements a **multimodal product search engine**, combining **text
 
 
 ```mermaid
-graph TD;
-    A[Start] --> B[Data Acquisition & Preprocessing];
-    B --> C[Generate Text Embeddings with CLIP];
-    B --> D[Download & Generate Image Embeddings with CLIP];
-    C --> E[Save to JSON (text and metadata)];
-    D --> E;
-    E --> F[Upload Embeddings to Pinecone];
-    F --> G[Chatbot Backend];
-    G --> H{"User Query<br>(Text/Image)"};
-    H --> I[Embed Query with CLIP];
-    I --> J[Search Pinecone for Similar Products];
-    J --> K[Build Retrieved Info];
-    K --> L[Send to LLM (Llama-3)];
-    L --> M[Return Conversational Answer];
-    M --> N[Display via Streamlit Interface];
+graph TD
+    A[Start] --> B[Data Acquisition & Preprocessing]
+    B --> C[Generate Text Embeddings with CLIP]
+    B --> D[Download & Generate Image Embeddings with CLIP]
+    C --> E[Save to JSON - text and metadata]
+    D --> E
+    E --> F[Upload Embeddings to Pinecone]
+    F --> G[Chatbot Backend]
+    G --> H{User Query - Text/Image}
+    H --> I[Embed Query with CLIP]
+    I --> J[Search Pinecone for Similar Products]
+    J --> K[Build Retrieved Info]
+    K --> L[Send to LLM - Llama-3]
+    L --> M[Return Conversational Answer]
+    M --> N[Display via Streamlit Interface]
 ```
