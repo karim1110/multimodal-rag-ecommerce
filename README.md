@@ -81,5 +81,4 @@ graph TD
     K --> L[Send to LLM (Llama-3)]
     L --> M[Return Conversational Answer]
     M --> N[Display via Streamlit Interface]
-    E --> O[Evaluation: Recall@K in Notebook]
-    ```
+```
