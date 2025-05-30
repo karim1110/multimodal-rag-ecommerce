@@ -169,13 +169,11 @@ col1, col2 = st.columns([3, 2]) # Keep the section ratio as requested
 
 with col1:
     st.subheader("🔍 What brings you here today?") # This header will now be white
-    tab1, tab2 = st.tabs(["📝 Text", "🌞 Image"])
-
-    with tab1:
-        text_query = st.text_input("Product question", placeholder="e.g. What's the resolution of Samsung TV?")
-    with tab2:
-        uploaded_image = st.file_uploader("Upload product image", type=["jpg", "jpeg", "png"])
-
+    
+    # Combined text and image input in one section
+    text_query = st.text_input("Product question", placeholder="e.g. What's the resolution of Samsung TV?")
+    uploaded_image = st.file_uploader("Upload product image (optional)", type=["jpg", "jpeg", "png"])
+    
     search = st.button("Search 🔍")
 
 with col2:
@@ -191,8 +189,7 @@ if search:
     with st.spinner("Retrieving results..."):
         # Determine if it's a text query, image query, or both
         if text_query and uploaded_image:
-            response = get_chatbot_response(image=uploaded_image)
-            st.warning("Both text and image provided. Processing based on image for now.")
+            response = get_chatbot_response(text=text_query, image=uploaded_image)
         elif text_query:
             response = get_chatbot_response(text=text_query)
         elif uploaded_image:
@@ -223,4 +220,3 @@ if search:
                         st.markdown(f"**{item['title']}**")
                         st.caption(item["description"])
                         st.markdown("</div>", unsafe_allow_html=True)
-
