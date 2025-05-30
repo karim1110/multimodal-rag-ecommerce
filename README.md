@@ -46,8 +46,10 @@ The solution implements a **multimodal product search engine**, combining **text
 - `query_vector_db(query)`:
   - Generates embedding for user query (text/image)
   - Performs similarity search in Pinecone
-  - Filters by type, builds product info string
-  - Sends query + info to **LLM** (Perplexity AI’s Llama-3)
+  - Retrieves product IDs and metadata from Pinecone
+  - Uses retrieved product IDs to fetch corresponding image URLs in local Database
+  - Builds product info string with metadata and images
+  - Sends query + info to **LLM** (Perplexity AI's Llama-3)
   - Returns conversational response
 
 #### 🌐 Streamlit Web App (`app.py`)
@@ -79,9 +81,11 @@ graph TD
     G --> H{User Query - Text/Image}
     H --> I[Embed Query with CLIP]
     I --> J[Search Pinecone for Similar Products]
-    J --> K[Retrieve Product Metadata & Images]
-    K --> L[Build Context from Retrieved Products]
-    L --> M[Send Context to Perplexity LLM]
-    M --> N[Generate Conversational Response]
-    N --> O[Display Response + Product Images via Streamlit]
+    J --> K[Retrieve Product IDs & Metadata]
+    K --> L[Fetch Product Image URLs using IDs]
+    L --> M[Build Context from Retrieved Products]
+    M --> N[Send Context to Perplexity LLM]
+    N --> O[Generate Conversational Response]
+    O --> P[Display Response + Product Images via Streamlit]
+
 ```
