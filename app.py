@@ -1,5 +1,7 @@
 import streamlit as st
 
+from chatbot_backend import query_vector_db as get_chatbot_response
+
 # --- Page Config ---
 st.set_page_config(page_title="Search a Product from Amazon", layout="wide")
 
@@ -167,13 +169,11 @@ col1, col2 = st.columns([3, 2]) # Keep the section ratio as requested
 
 with col1:
     st.subheader("🔍 What brings you here today?") # This header will now be white
-    tab1, tab2 = st.tabs(["📝 Text", "🌞 Image"])
-
-    with tab1:
-        text_query = st.text_input("Product question", placeholder="e.g. What's the resolution of Samsung TV?")
-    with tab2:
-        uploaded_image = st.file_uploader("Upload product image", type=["jpg", "jpeg", "png"])
-
+    
+    # Combined text and image input in one section
+    text_query = st.text_input("Product question", placeholder="e.g. What's the resolution of Samsung TV?")
+    uploaded_image = st.file_uploader("Upload product image (optional)", type=["jpg", "jpeg", "png"])
+    
     search = st.button("Search 🔍")
 
 with col2:
@@ -189,12 +189,11 @@ if search:
     with st.spinner("Retrieving results..."):
         # Determine if it's a text query, image query, or both
         if text_query and uploaded_image:
-            response = get_chatbot_response(image_file=uploaded_image)
-            st.warning("Both text and image provided. Processing based on image for now.")
+            response = get_chatbot_response(text=text_query, image=uploaded_image)
         elif text_query:
-            response = get_chatbot_response(text_query=text_query)
+            response = get_chatbot_response(text=text_query)
         elif uploaded_image:
-            response = get_chatbot_response(image_file=uploaded_image)
+            response = get_chatbot_response(image=uploaded_image)
         else:
             response = get_chatbot_response()
 
@@ -203,8 +202,9 @@ if search:
     st.markdown(response["answer"])
 
     if response["image_url"]:
-        st.image(response["image_url"], caption="Identified Product", use_column_width=True)
+        st.image(response["image_url"], caption="Identified Product", use_container_width=True)
 
+    # In your frontend code (app.py), modify the product card section:
     if response["retrieved_items"]:
         st.markdown("### 📚 Related Products")
         num_items = len(response["retrieved_items"])
@@ -215,86 +215,8 @@ if search:
                 if i < 3:
                     with result_cols[i]:
                         st.markdown("<div class='product-card'>", unsafe_allow_html=True)
-                        st.image(item["image"], use_column_width=True)
+                        if item["image"] is not None:
+                            st.image(item["image"], use_container_width=True)
                         st.markdown(f"**{item['title']}**")
                         st.caption(item["description"])
                         st.markdown("</div>", unsafe_allow_html=True)
-        else:
-            st.info("No related products found for this query.")
-
-
-# --- Backend Placeholder Functions (Replace with your actual model calls) ---
-def get_chatbot_response(text_query=None, image_file=None):
-    """
-    This function will simulate the backend calls to your multimodal chatbot.
-    In a real scenario, this would:
-    1. Send text_query and/or image_file to your RAG system.
-    2. Utilize CLIP for embedding generation.
-    3. Query your vector database (e.g., Google Vertex AI Vector Search) for retrieval.
-    4. Pass the retrieved context to your LLM (e.g., Meta-Llama-3.1 or Mixtral).
-    5. Generate the final multimodal response.
-    """
-    if text_query:
-        if "Samsung Galaxy S21" in text_query:
-            return {
-                "answer": "The Samsung Galaxy S21 comes with a 6.2-inch Dynamic AMOLED display, a triple-camera setup (12MP wide, 64MP telephoto, 12MP ultrawide), and a 4000mAh battery.",
-                "image_url": None,
-                "retrieved_items": []
-            }
-        elif "compare" in text_query and "Amazon Echo Dot" in text_query and "Google Nest Mini" in text_query:
-            return {
-                "answer": "The Amazon Echo Dot features Alexa voice assistant, a 1.6-inch speaker, and Bluetooth connectivity. The Google Nest Mini, on the other hand, comes with Google Assistant, a 40mm driver, and supports both Bluetooth and Wi-Fi. Both devices are designed for smart home control and music playback, but the choice depends on your preferred ecosystem (Amazon Alexa or Google Assistant).",
-                "image_url": None,
-                "retrieved_items": []
-            }
-        elif "Apple AirPods Pro" in text_query and ("show me a picture" in text_query or "picture of" in text_query):
-            return {
-                "answer": "Sure, here is an image of the Apple AirPods Pro: The AirPods Pro features active noise cancellation, a customizable fit with silicone tips, and are sweat and water-resistant, making them ideal for workouts and daily use.",
-                "image_url": "https://m.media-amazon.com/images/I/71SUjE2d7TL._AC_SL1500_.jpg",
-                "retrieved_items": []
-            }
-        elif "Samsung TV" in text_query and "resolution" in text_query:
-            return {
-                "answer": "This is the **Samsung 4K UHD Smart TV**. It features a crystal display, HDR, built-in Alexa, and 3 HDMI ports.",
-                "image_url": "https://m.media-amazon.com/images/I/81c+9BOQNWL._AC_SL1500_.jpg",
-                "retrieved_items": [
-                    {
-                        "title": "Samsung Crystal UHD 55-Inch",
-                        "description": "4K UHD HDR Smart TV with Alexa Built-In, 3 HDMI, Motion Xcelerator.",
-                        "image": "https://m.media-amazon.com/images/I/81c+9BOQNWL._AC_SL1500_.jpg"
-                    },
-                    {
-                        "title": "LG 55-Inch 4K Smart TV",
-                        "description": "AI-powered, webOS, built-in streaming apps, voice remote.",
-                        "image": "https://m.media-amazon.com/images/I/71ZJL7xDfCL._AC_SL1500_.jpg"
-                    }
-                ]
-            }
-        else:
-            return {
-                "answer": "I'm not sure how to answer that specific text query yet. Please try another sample question or provide more details.",
-                "image_url": None,
-                "retrieved_items": []
-            }
-    elif image_file:
-        # Simulate image processing and product identification
-        # In a real scenario, you'd pass image_file.getvalue() to your model
-        # and get a response based on the image content.
-        if uploaded_image:
-             return {
-                "answer": "This is a **KitchenAid Artisan Stand Mixer**. It is used for mixing, kneading, and whipping ingredients, making it ideal for baking and cooking tasks. It comes with multiple attachments for various culinary tasks, such as making pasta or grinding meat.",
-                "image_url": None, # No additional image to display for this type of query
-                "retrieved_items": []
-            }
-        else:
-            return {
-                "answer": "I can identify products from images. Please upload an image to proceed.",
-                "image_url": None,
-                "retrieved_items": []
-            }
-    else:
-        return {
-            "answer": "Please provide either a text question or an image to get a response.",
-            "image_url": None,
-            "retrieved_items": []
-        }

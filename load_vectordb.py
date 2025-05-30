@@ -8,11 +8,13 @@ from collections import defaultdict
 import time
 
 # Configuration
-PINECONE_API_KEY = 'pcsk_4s4r2w_GFnSRp5iPi24XFc8qFz5ihLaMPzpn4U5x69r2kZByd4Fbsd3HVSJ2r4cVWNHMrG'
+PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
 INDEX_NAME = "multimodal"
 EMBEDDING_DIM = 512  # CLIP base model uses 512-dimensional embeddings
 BATCH_SIZE = 100  # Number of items to upsert at once
 EVAL_SAMPLE_SIZE = 100  # Number of items to evaluate (set to 0 to skip evaluation)
+print("Loaded Pinecone key:", bool(PINECONE_API_KEY))
+
 
 def initialize_pinecone():
     """Initialize Pinecone connection and create index if needed"""
