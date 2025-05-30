@@ -191,12 +191,12 @@ if search:
     with st.spinner("Retrieving results..."):
         # Determine if it's a text query, image query, or both
         if text_query and uploaded_image:
-            response = get_chatbot_response(image_file=uploaded_image)
+            response = get_chatbot_response(image=uploaded_image)
             st.warning("Both text and image provided. Processing based on image for now.")
         elif text_query:
-            response = get_chatbot_response(text_query=text_query)
+            response = get_chatbot_response(text=text_query)
         elif uploaded_image:
-            response = get_chatbot_response(image_file=uploaded_image)
+            response = get_chatbot_response(image=uploaded_image)
         else:
             response = get_chatbot_response()
 
@@ -205,8 +205,9 @@ if search:
     st.markdown(response["answer"])
 
     if response["image_url"]:
-        st.image(response["image_url"], caption="Identified Product", use_column_width=True)
+        st.image(response["image_url"], caption="Identified Product", use_container_width=True)
 
+    # In your frontend code (app.py), modify the product card section:
     if response["retrieved_items"]:
         st.markdown("### 📚 Related Products")
         num_items = len(response["retrieved_items"])
@@ -217,10 +218,9 @@ if search:
                 if i < 3:
                     with result_cols[i]:
                         st.markdown("<div class='product-card'>", unsafe_allow_html=True)
-                        st.image(item["image"], use_column_width=True)
+                        if item["image"] is not None:
+                            st.image(item["image"], use_container_width=True)
                         st.markdown(f"**{item['title']}**")
                         st.caption(item["description"])
                         st.markdown("</div>", unsafe_allow_html=True)
-        else:
-            st.info("No related products found for this query.")
 
