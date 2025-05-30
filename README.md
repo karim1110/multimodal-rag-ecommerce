@@ -67,6 +67,7 @@ The solution implements a **multimodal product search engine**, combining **text
 
 
 ```mermaid
+graph TD
     A[Start] --> B[Data Acquisition & Preprocessing]
     B --> C[Generate Text Embeddings with CLIP]
     B --> D[Download & Generate Image Embeddings with CLIP]
